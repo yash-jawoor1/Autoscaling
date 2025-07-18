@@ -1,12 +1,6 @@
 pipeline {
     agent any
 
-    environment {
-        DOCKER_IMAGE = 'yash3020/demo'                      // Your Docker Hub image
-        DOCKER_CREDENTIALS_ID = 'dockerhub-credentials'     // Jenkins credentials for DockerHub
-        KUBECONFIG_CREDENTIALS_ID = 'eks-kubeconfig'        // Jenkins credentials for kubeconfig
-    }
-
     stages {
         stage('Checkout') {
             steps {
@@ -14,52 +8,22 @@ pipeline {
             }
         }
 
-        stage('Install Dependencies') {
-            when {
-                expression { fileExists('package.json') } // Only run if Node.js project
-            }
+        stage('Verify Files') {
             steps {
-                sh 'npm install'
+                sh 'ls -la'
+                sh 'cat index.php | head -n 10 || echo "index.php not found"'
             }
         }
 
-        stage('Test') {
-            when {
-                expression { fileExists('package.json') }
-            }
+        stage('PHP Syntax Check (Optional)') {
             steps {
-                sh 'npm test || echo "No tests defined, skipping..."'
-            }
-        }
-
-        stage('Build Docker Image') {
-            steps {
-                script {
-                    docker.build("${DOCKER_IMAGE}:latest")
-                }
-            }
-        }
-
-        stage('Push to Docker Hub') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDENTIALS_ID}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh '''
-                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker push ${DOCKER_IMAGE}:latest
-                    '''
-                }
-            }
-        }
-
-        stage('Deploy to EKS') {
-            steps {
-                withCredentials([file(credentialsId: "${KUBECONFIG_CREDENTIALS_ID}", variable: 'KUBECONFIG')]) {
-                    sh '''
-                        export KUBECONFIG=$KUBECONFIG
-                        kubectl apply -f k8s/deployment.yaml
-                        kubectl apply -f k8s/service.yaml
-                    '''
-                }
+                sh '''
+                    if command -v php > /dev/null; then
+                        find . -name "*.php" -print0 | xargs -0 -n1 php -l || true
+                    else
+                        echo "PHP not installed on Jenkins agent, skipping syntax check"
+                    fi
+                '''
             }
         }
     }
