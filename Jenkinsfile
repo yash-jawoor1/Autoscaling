@@ -2,9 +2,9 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = 'yash3020/demo' // Replace with your Docker Hub repo
-        DOCKER_CREDENTIALS_ID = 'dockerhub-credentials' // Jenkins ID for DockerHub credentials
-        KUBECONFIG_CREDENTIALS_ID = 'eks-kubeconfig' // Jenkins ID for kubeconfig file
+        DOCKER_IMAGE = 'yash3020/demo'                      // Your Docker Hub image
+        DOCKER_CREDENTIALS_ID = 'dockerhub-credentials'     // Jenkins credentials for DockerHub
+        KUBECONFIG_CREDENTIALS_ID = 'eks-kubeconfig'        // Jenkins credentials for kubeconfig
     }
 
     stages {
@@ -15,12 +15,18 @@ pipeline {
         }
 
         stage('Install Dependencies') {
+            when {
+                expression { fileExists('package.json') } // Only run if Node.js project
+            }
             steps {
                 sh 'npm install'
             }
         }
 
         stage('Test') {
+            when {
+                expression { fileExists('package.json') }
+            }
             steps {
                 sh 'npm test || echo "No tests defined, skipping..."'
             }
